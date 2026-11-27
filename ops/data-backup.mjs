@@ -1,0 +1,15 @@
+import {openDatabase,transaction} from '../src/database.mjs';
+import {openStorage,mediaBlobCollection} from '../src/storage.mjs';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {join,resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {BSON} from 'mongodb';
+const [mode,target]=process.argv.slice(2);if(!['backup','restore'].includes(mode)||!target)throw Error('Use backup|restore <private directory> with app writes stopped.');
+const db=await openDatabase();
+let storage;
+const transient = ['sessions','customer_sessions','customer_links','guest_enquiry_requests','guest_enquiry_sessions','staff_recovery'];
+try{
+  storage=await openStorage(db);
+  if(mode==='backup'){await mkdir(target,{recursive:false});await mkdir(join(target,'uploads'));const collections={};for(const {name} of await db.raw.listCollections().toArray())if(name!==mediaBlobCollection&&!transient.includes(name))collections[name]=await db.raw.collection(name).find().toArray();const files=[];for(const m of collections.media){const bytes=await storage.read(m.stored_name);await writeFile(join(target,'uploads',m.stored_name),bytes,{flag:'wx'});files.push({key:m.stored_name,sha256:createHash('sha256').update(bytes).digest('hex')});}await writeFile(join(target,'backup.json'),BSON.EJSON.stringify({collections,files}),{flag:'wx',mode:0o600});console.log('Private database/files backup completed.');}
+else {const backup=BSON.EJSON.parse(await readFile(join(target,'backup.json'),'utf8'));for(const name of ['staff_users','listings','media','properties','projects','external_accounts','customer_bookmarks','saved_interests','customer_searches','owner_submissions','enquiries','enquiry_messages','enquiry_restricted_messages','update_events','customer_updates','staff_recovery','guest_enquiry_requests','guest_enquiry_sessions','customer_sessions','customer_links'])if(await db.count(name))throw Error('Restore requires an empty target database.');for(const file of backup.files){const bytes=await readFile(join(target,'uploads',file.key));if(createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('Backup file checksum mismatch.');try{await storage.put(file.key,bytes);}catch(e){if(e.code!=='EEXIST'||createHash('sha256').update(await storage.read(file.key)).digest('hex')!==file.sha256)throw e;}}await transaction(db,async()=>{if(!backup.collections.schema_migrations?.some(entry=>entry._id==='006_lead_history'))await db.remove('schema_migrations',{_id:'006_lead_history'});for(const [name,docs] of Object.entries(backup.collections)){if(['workspace','schema_migrations',mediaBlobCollection,...transient].includes(name))continue;await db.remove(name,{});for(const doc of docs)await db.insert(name,name==='enquiries'?{...doc,contact_grant:null,disclosed_location:null,visit:doc.visit?{...doc.visit,disclosed_at:null}:null}:name==='saved_interests'?{...doc,grant:null}:name==='update_events'&&!doc.processed_at?{...doc,processed_at:new Date().toISOString(),restore_suppressed:true}:doc);}});console.log('Database/files restored; previous sessions and account links invalidated.');}
+}finally{storage?.close?.();await db.close();}

@@ -1,0 +1,22 @@
+{
+  "name": "forma-render-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "db:migrate": "node ops/migrate.mjs",
+    "admin:create": "node ops/create-administrator.mjs",
+    "media:check": "node ops/check-media.mjs",
+    "data:backup": "node ops/data-backup.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1178.0",
+    "mongodb": "6.21.0",
+    "nodemailer": "10.6.0",
+    "sharp": "^0.35.5"
+  }
+}
