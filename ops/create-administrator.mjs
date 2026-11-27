@@ -1,3 +1,4 @@
+import '../src/environment.mjs';
 import {openDatabase} from '../src/database.mjs';
 import {createFirstAdministrator} from '../src/staff-accounts.mjs';
 

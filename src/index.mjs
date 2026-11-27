@@ -1,3 +1,4 @@
+import './environment.mjs';
 import brand from './brand.json' with { type: 'json' };
 import { createApplication } from './app.mjs';
 const app=await createApplication({serveStatic:process.argv.includes('--static'),worker:true});

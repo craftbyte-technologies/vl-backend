@@ -1,3 +1,4 @@
+import '../src/environment.mjs';
 import {openDatabase} from '../src/database.mjs';
 import {openStorage} from '../src/storage.mjs';
 

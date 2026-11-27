@@ -1,3 +1,4 @@
+import '../src/environment.mjs';
 import {openDatabase,transaction} from '../src/database.mjs';
 import {openStorage,mediaBlobCollection} from '../src/storage.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';

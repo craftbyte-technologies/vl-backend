@@ -12,13 +12,15 @@ export function renderConfig(env = process.env) {
     return null;
   }
   const frontend = httpsOrigin(env.APP_ORIGIN, 'APP_ORIGIN');
-  const api = httpsOrigin(env.PUBLIC_API_ORIGIN, 'PUBLIC_API_ORIGIN');
+  // Existing explicit overrides still work. Custom domains can share the frontend's public setting.
+  const originKey = env.PUBLIC_API_ORIGIN ? 'PUBLIC_API_ORIGIN' : env.VITE_API_ORIGIN ? 'VITE_API_ORIGIN' : 'RENDER_EXTERNAL_URL';
+  const api = httpsOrigin(env[originKey], originKey);
   if (frontend.origin === api.origin) throw new Error('Configure separate Render frontend and API origins.');
   if (env.NODE_ENV !== 'production' || env.ALLOW_LOCAL_BOOTSTRAP === '1') {
     throw new Error('Render requires production mode and operator-only administrator setup.');
   }
-  if (!['mongodb', 'r2'].includes(env.STORAGE_DRIVER) || env.CUSTOMER_MAIL_MODE !== 'brevo-api' || !env.CLAMD_HOST?.trim()) {
-    throw new Error('Render requires MongoDB or R2 storage, Brevo HTTPS email, and a private ClamAV host.');
+  if (!['mongodb', 'r2'].includes(env.STORAGE_DRIVER) || env.CUSTOMER_MAIL_MODE !== 'brevo-api') {
+    throw new Error('Render requires MongoDB or R2 storage and Brevo HTTPS email.');
   }
   if (!env.MONGODB_DATABASE?.trim()) throw new Error('Set MONGODB_DATABASE for the hosted service.');
   return { frontend, api };
